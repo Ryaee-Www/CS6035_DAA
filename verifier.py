@@ -1,3 +1,5 @@
+import http.server
+import socketserver
 class Verifier:
     def __init__(self, issuer_verifying_key):
         self.issuer_verifying_key = issuer_verifying_key
