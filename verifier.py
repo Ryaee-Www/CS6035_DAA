@@ -1,9 +1,9 @@
 import http.server
 import socketserver
 class Verifier:
-    def __init__(self, issuer_verifying_key):
-        self.issuer_verifying_key = issuer_verifying_key
+    def __init__(self, issuer_aik):
+        self.issuer_verifying_aik = issuer_aik
 
-    def verify(self, signature, message, host_verifying_key):
+    def verify(self, signature, message, tpm_aik):
         # Verify an attestation
-        return host_verifying_key.verify(signature, message) and self.issuer_verifying_key.verify(signature, message)
+        return tpm_aik.verify(signature, message) and self.issuer_verifying_aik.verify(signature, message)
