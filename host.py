@@ -1,10 +1,17 @@
 import http.server
 import socketserver
+from hashlib import sha256
+import petlib
 class Host:
-    def __init__(self, issuer):
-        self.ek, self.aik = issuer.issue()
+    def __init__(self, tpm):
+        self.tpm = tpm
+    
+    def generateComm(self):
+        self.comm = self.tpm.generateNewComm()
+    
+    def getPublicKey(self):
+        return self.comm
 
-    def attest(self, message):
-        # Create an attestation
-        signature = self.ek.sign(message)
-        return signature
+    def prove(self):
+        proof = self.tpm.prove()
+        return proof
