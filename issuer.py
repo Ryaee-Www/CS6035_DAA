@@ -2,6 +2,8 @@ from ecdsa import SigningKey, SECP256k1
 import petlib
 from petlib.ec import EcGroup, EcPt
 from hashlib import sha256
+import json
+import petlib.ecdsa
 
 class Issuer:
     def __init__(self, EC):
@@ -42,7 +44,12 @@ class Issuer:
         c, r = proof
         W = (r * self.getGenerator() + c * hPublicK)
 
-        state = ['schnorr', self.getGroup().nid(), self.getGenerator, hPublicK, W]
+        state = ['schnorr', self.getGroup().nid(), self.getGenerator(), hPublicK, W]
         hash_c = self.challenge(state)
         c2 = petlib.bn.Bn.from_binary(hash_c) % self.getOrder()
         return c == c2
+    
+    def produceCred(self, hostAttributes):
+        digest = sha256(json.dumps(hostAttributes).encode()).digest()
+        partialSignature = petlib.ecdsa.do_ecdsa_sign(self.getGroup(),self.isk,digest)
+        return partialSignature

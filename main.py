@@ -4,22 +4,36 @@ from tpm import TPM
 from verifier import Verifier
 import petlib
 from hashlib import sha256
-
+class secrityParam():
+    def __init__(self, group, generator, order, hpk, ipk):
+        self.ECGroup = group
+        self.generator = generator
+        self.order = order
+        self.hpk = hpk
+        self.ipk = ipk
 def doJoin(host, issuer):
+    #join t, host generate public key from tpm private key.
     host.generateComm()
-    proof = host.prove()
+    #join i, host prove to issuer that it has valid tpm, issuer issue crediential using its private key on host message's hash digest
+    proof, hostAttributes = host.prove()
     condition = issuer.verify(proof,host.getPublicKey())
     print(condition)
+    if condition:
+        cred = issuer.produceCred(hostAttributes)
+        host.saveCred(cred)
+        
 
-def challenge(elements):
-    """Packages a challenge in a bijective way"""
-    elem = [len(elements)] + elements
-    elem_str = map(str, elem)
-    elem_len = map(lambda x: "%s||%s" % (len(x) , x), elem_str)
-    state = "|".join(elem_len)
-    H = sha256()
-    H.update(state.encode("utf8"))
-    return H.digest()
+    
+def doSign(host):
+    PCR = host.getPCR()
+    host.saveJoint(host.coSign())
+    #print("joint", host.joint)
+    return host.joint, host.sign(PCR)
+
+
+def doVerify(verifier, host, message):
+    print(verifier.verifyJoint(host.getGenerator(), host.getPublicKey(), *host.joint, host))
+    #return verifier.verifyJoint(host.getGroup(), host.getPublicKey(), *host.joint)
 
 if __name__ == '__main__':
     
@@ -32,14 +46,20 @@ if __name__ == '__main__':
     tpm = TPM(issuer)
     host = Host(tpm)
     verifier = Verifier(issuer)
+    #param = secrityParam(issuer.getGroup(), issuer.getGenerator(), issuer.getOrder(),host.getPublicKey(), issuer.getPublicKey())
+    #
 
     ##JOIN PHASE
-    #JOIN_T
+
     doJoin(host,issuer)
-
-    #JOIN_I
-
-
+    
+    
+    ##SIGN PHASE
+    proofToVerifier = doSign(host)
+    
+    ##VERIFY PHASE
+    acceptance = doVerify(verifier, host, proofToVerifier)
+    '''
     # The host creates an attestation
     message = b"Hello, World!"  # The message to be signed
     signature = tpm.attest(message)
@@ -50,3 +70,4 @@ if __name__ == '__main__':
     # Verify the signature
     is_valid = verifier.verify(signature, message, issuer.aik)
     print(f"Signature valid: {is_valid}")
+    '''
