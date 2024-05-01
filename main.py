@@ -35,22 +35,25 @@ def doJoin_i(host, issuer):
 def doSign(host):
     PCR = host.getPCR()
     host.saveJoint(host.coSign())
+    print("Host sign (with help of TPM) on a PCR digest, send the joint signature, joint key, host attribute's hash Digest, host's tpm signature on PCR value and PCR value to verifier")
     attributeDigest = sha256(json.dumps(host.getAttributes()).encode()).digest()
     #print("joint", host.joint)
     return host.joint, attributeDigest, host.sign(PCR)
 
 
 def doVerify(verifier, proofToVerifier):
+    print("Verifier receive host's joint signature, joint key, attribute digest, pcrSig and pcr value")
     joint, digest, sigPCR= proofToVerifier
 
     if verifier.verifyJoint(joint, digest):
-        verifier.verifyPCR(sigPCR)
+        return verifier.verifyPCR(sigPCR)
+    
     #verifier.verifyPCR()
     #print()
     #return verifier.verifyJoint(host.getGroup(), host.getPublicKey(), *host.joint)
 
 if __name__ == '__main__':
-    
+    print("*Assume procedure start at host - issuer interation*\n")
     ##SETUP PHASE
 
     # Create an issuer
@@ -77,8 +80,9 @@ if __name__ == '__main__':
     proofToVerifier = doSign(host)
     host.getPublicKey()
     ##VERIFY PHASE
-    acceptance = doVerify(verifier, proofToVerifier)
-    host.getPublicKey()
+    accept = doVerify(verifier, proofToVerifier)
+    if accept:
+        print("DAA procedure ends. Host is proven to be valid. Verifier procced to offer service/resource to Host.")
     '''
     # The host creates an attestation
     message = b"Hello, World!"  # The message to be signed

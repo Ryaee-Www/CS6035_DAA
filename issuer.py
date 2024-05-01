@@ -44,6 +44,7 @@ class Issuer:
     
     def verify(self,proof, hPublicK):
         """Verify the statement ZK(x ; h = g^x)"""
+        print("Issuer receive host's Schnorr Proof of knowledge of its private key at issuer.verify\n")
         c, r = proof
         W = (r * self.getGenerator() + c * hPublicK)
 
@@ -51,10 +52,11 @@ class Issuer:
         hash_c = self.challenge(state)
         c2 = petlib.bn.Bn.from_binary(hash_c) % self.getOrder()
         if c == c2:
-            print("Host tpm private key validated.\n")
-            print("Check host tpm Specifications...\n")
-            print("Check tpm checksum...\n")
-            print("check Complete. Host validated\n")
+            print("Hashes equals, Host tpm private key validated.\n")
+            print("Issuer check Host Attributes:")
+            print("- Check host tpm Specifications...")
+            print("- Check tpm checksum...\n")
+            print("Check Complete. Host validated\n")
             return True
         else:
             print("Host tpm private key not valid. Aborts.")
@@ -62,17 +64,19 @@ class Issuer:
 
     
     def produceCred(self, hostAttributes, hostPartialPk):
-        print("Generating partical signature...\n")
+        print("Issuer Generate partical signature at issuer.produceCred")
+        
         digest = sha256(json.dumps(hostAttributes).encode()).digest()
         e = petlib.bn.Bn.from_binary(digest)
         partialSk = self.order.random()
         partialPk = partialSk * self.generator
-
+        print("- Issuer calcuate joint Key with host paritial Public key and issuer partial Secret Key (k2 * k1 * g)")
         jointKey = partialSk * hostPartialPk #k1 * k2 * g -- ie, host ecdsa secret * issuer ecdsa secret * generator
         
         rx, ry = jointKey.get_affine()
         
         r = rx % self.order
-        
+        print("- Issuer produce Partial signature (commitment s2) using paritial secret key and issuer secret key.\n- Sign on host Attribute's hash digest to produce an ecdsa partial signature (s2)")
         partialSignature = (partialSk.mod_inverse(self.order) * (e + r * self.isk)) % self.order
+        print("Issuer send partial signature (commitment s2) and partial Public Key to host.\n")
         return partialSignature, partialPk

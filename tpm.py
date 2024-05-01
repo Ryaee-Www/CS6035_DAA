@@ -61,7 +61,7 @@ class TPM:
 
         c = petlib.bn.Bn.from_binary(hash_c) % self.order
         r = (w - c * self.tsk) % self.order
-        print("generate and send proof to Issuer")
+        print("Host generate and send proof and partial Public key (k1 * g) to Issuer at tpm.prove\n")
         self.generatePartialKey()
         return ((c, r), self.partialPK)
     
@@ -75,6 +75,8 @@ class TPM:
         return self.PCR
     
     def coSign(self, partialSignature, iPartialPK):
+        print("Host receive partial signature (s2) and partial Public Key (R2 = k2 * g)and pass to TPM to produce joint signature at tpm.coSign")
+        print("- TPM calcualte joint Key (R) with issuer partial Public key and host partial Secret key (R = k1 * k2 * g)")
         R = self.partialSK * iPartialPK# ie, k1 * k2 * g
         #print(type(self.partialSK), type(iPartialPK))
         #assert R_host == R
@@ -82,7 +84,9 @@ class TPM:
         r = rx % self.order
     
         e = petlib.bn.Bn.from_binary(sha256(json.dumps(self.getAttributes()).encode()).digest())
+        print("- TPM produce joint signature (r,s) where s = (k1^-1 * (m' + r * tsk) * s2) mod o using a modified ecdsa signature scheme with additional partial signature (commitment s2)")
         s = (self.partialSK.mod_inverse(self.order) * (e + r * self.tsk) * partialSignature)% self.order
+        print("- TPM calculate joint Public Key Pair (Q_add = tpm public Key + issuer public Key, Q_mul = tpm secret Key * issuer public Key)")
         Q_add = self.getPublicKey() + self.ipk
         Q_mul = self.tsk * self.ipk
         
@@ -95,14 +99,16 @@ class TPM:
         cx, cy = C.get_affine()
         assert r == cx % self.order
 
+        print("TPM pass joint signature and joint Public Pair to Host\n")
         return (r,s) , (Q_add, Q_mul)
     
     def sign(self, message):
+        print("- TPM signs on PCR digest hash at tpm.sign\n")
         digest = sha256(message.encode()).digest()
         signature = petlib.ecdsa.do_ecdsa_sign(self.group,self.tsk,digest)
 
         assert(petlib.ecdsa.do_ecdsa_verify(self.group, self.tpk, signature, digest))
-        return signature, digest
+        return signature, message
     
     def saveJoint(self,jointSig):
         self.joint = jointSig

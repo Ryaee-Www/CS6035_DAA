@@ -42,5 +42,7 @@ class Host:
         return self.tpm.coSign(*self.cred)
 
     def saveJoint(self, jointSig):
+        print("Host and TPM save joint Signature and joint Key")
         self.tpm.saveJoint(jointSig)
         self.joint = jointSig
+        
