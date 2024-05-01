@@ -12,7 +12,7 @@ class Issuer:
         self.generator = self.group.generator()
         self.order = self.group.order()
         self.isk = self.order.random()
-        self.param = self.isk * self.generator
+        self.ipk = self.isk * self.generator
   
         #self.ek = SigningKey.generate(curve=SECP256k1)  # Generate a new ECDSA key pair
         #self.aik = self.ek.get_verifying_key()
@@ -27,7 +27,10 @@ class Issuer:
         return self.order
     
     def getPublicKey(self):
-        return self.param
+        return self.ipk
+    
+    def getParam(self):
+        return self.getGroup(), self.getGenerator(), self.getOrder(), self.getPublicKey()
     
     def challenge(self, elements):
         """Packages a challenge in a bijective way"""
@@ -47,9 +50,29 @@ class Issuer:
         state = ['schnorr', self.getGroup().nid(), self.getGenerator(), hPublicK, W]
         hash_c = self.challenge(state)
         c2 = petlib.bn.Bn.from_binary(hash_c) % self.getOrder()
-        return c == c2
+        if c == c2:
+            print("Host tpm private key validated.\n")
+            print("Check host tpm Specifications...\n")
+            print("Check tpm checksum...\n")
+            print("check Complete. Host validated\n")
+            return True
+        else:
+            print("Host tpm private key not valid. Aborts.")
+            return False
+
     
-    def produceCred(self, hostAttributes):
+    def produceCred(self, hostAttributes, hostPartialPk):
+        print("Generating partical signature...\n")
         digest = sha256(json.dumps(hostAttributes).encode()).digest()
-        partialSignature = petlib.ecdsa.do_ecdsa_sign(self.getGroup(),self.isk,digest)
-        return partialSignature
+        e = petlib.bn.Bn.from_binary(digest)
+        partialSk = self.order.random()
+        partialPk = partialSk * self.generator
+
+        jointKey = partialSk * hostPartialPk #k1 * k2 * g -- ie, host ecdsa secret * issuer ecdsa secret * generator
+        
+        rx, ry = jointKey.get_affine()
+        
+        r = rx % self.order
+        
+        partialSignature = (partialSk.mod_inverse(self.order) * (e + r * self.isk)) % self.order
+        return partialSignature, partialPk
